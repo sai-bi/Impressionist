@@ -7,11 +7,11 @@
 #include "highgui.h"
 #include <fstream>
 
-#define BRUSH_LENGTH_1 4 
+#define BRUSH_LENGTH_1 5 
 #define BRUSH_LENGTH_2 10
-#define BRUSH_RADIUS_1 1.5
-#define BRUSH_RADIUS_2 2.0
-#define FALLOFF 6
+#define BRUSH_RADIUS_1 4
+#define BRUSH_RADIUS_2 6
+#define FALLOFF 2
 #define GRADIENT_RADIUS 10
 #define PI 3.1415926
 using namespace std;
@@ -25,4 +25,20 @@ void sobelFilter(const Mat& src, Mat& gradientX, Mat& gradientY, Mat& gradient);
 void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY, 
                 Point2d direction, Point2d& startPoint,  Point2d& endPoint,
                 int strokeLength);
+double bilinearIntensitySample(const Mat& sobelFilteredImage, double x, double y);
+void renderStroke(const Mat& originImg, Mat& targetImg,
+                const Mat& sobelFilteredImage,
+                int centerX, int centerY,Point2d direction);
+bool pointInRectangle(const Point2d& point, const Point2d& rectangle1, 
+                    const Point2d& rectangle2,
+                    const Point2d& rectangle3, const Point2d& rectangle4);
+Point2d calDirection(const Mat& gradientX, const Mat& gradientY, double centerX, double centerY);
+
+double operator*(const Point2d& p1, const Point2d& p2);
+Point2d operator/(const Point2d& p1, double t);
+
+void renderRectangle(Point2d startPoint, Point2d endPoint, double brushRadius,
+                    const Mat& originImg, Mat& targetImg, Vec3b currColor);
+
+void renderCircle(Point2d center, double brushRadius, const Mat& originImg, Mat& targetImg, Vec3b currColor);
 #endif
