@@ -134,11 +134,11 @@ void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY,
     
     direction = direction / cv::norm(direction);
     // bilinear sample intensity at (tempX, tempY)
-    cout<<tempX << " "<<tempY
-        <<" "<<sobelFilteredImage.rows
-        <<" "<<sobelFilteredImage.cols<<endl;
+    // cout<<tempX << " "<<tempY
+        // <<" "<<sobelFilteredImage.rows
+        // <<" "<<sobelFilteredImage.cols<<endl;
     double lastIntensity = bilinearIntensitySample(sobelFilteredImage, tempX, tempY);
-    cout<<"hello1"<<endl;
+    cout<<"hello"<<endl;
     while(true){
         tempX = tempX + direction.x;
         tempY = tempY + direction.y;
@@ -160,13 +160,14 @@ void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY,
     direction = (-1) * direction;
     lastIntensity = bilinearIntensitySample(sobelFilteredImage,tempX,tempY);
          
+    cout<<"hello1"<<endl;
     while(true){
         tempX = tempX + direction.x;
         tempY = tempY + direction.y;
         if(tempX < 0 || tempY < 0 || tempX >= sobelFilteredImage.cols 
             || tempY >= sobelFilteredImage.rows)
             break;
-        if(norm(Point2d(tempX - centerX, tempY - centerY)) > strokeLength/2)
+        if(norm(Point2d(tempX - centerX, tempY - centerY)) > strokeLength)
             break;
         double newIntensity = bilinearIntensitySample(sobelFilteredImage,tempX,tempY);
         if(newIntensity < lastIntensity)
@@ -176,6 +177,7 @@ void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY,
     endX = tempX;
     endY = tempY;
 
+    cout<<"hello2"<<endl;
     if(startX < endX){
         startPoint.x = startX;
         startPoint.y = startY;
@@ -188,7 +190,6 @@ void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY,
         endPoint.x = startX;
         endPoint.y = startY;
     }
-    cout<<"hello2"<<endl;
 }
 /**
  * Given a point(x,y), calculate the intensity at that point using bilinear interpolation.
@@ -197,12 +198,18 @@ void clipStroke(const Mat& sobelFilteredImage, int centerX, int centerY,
  * @param y
  */
 double bilinearIntensitySample(const Mat& sobelFilteredImage, double x, double y){
-    
+    cout<<"hello3"<<endl; 
     int leftX = int(x);
     int leftY = int(y);
-    if(leftX >= sobelFilteredImage.cols-1 || leftY >= sobelFilteredImage.rows-1)
-        return 10000000;
-
+    if(leftX >= sobelFilteredImage.cols-1 || leftY >= sobelFilteredImage.rows-1
+            ||leftX < 0 || leftY< 0){
+        cout<<"hello4"<<endl;
+        return -1000000;
+    }
+    cout<<leftX << " "<<leftY
+        <<" "<<sobelFilteredImage.rows
+        <<" "<<sobelFilteredImage.cols<<endl; 
+    
     double leftupIntensity = sobelFilteredImage.at<short int>(leftY,leftX);
     double leftdownIntensity = sobelFilteredImage.at<short int>(leftY+1,leftX);
     double rightUpIntensity = sobelFilteredImage.at<short int>(leftY,leftX+1);
@@ -213,6 +220,7 @@ double bilinearIntensitySample(const Mat& sobelFilteredImage, double x, double y
 
     double result = temp1 * (y-leftY) + temp2*(leftY+1-y);
 
+    cout<<"hello4"<<endl;
     return result;
 }
 
@@ -235,32 +243,36 @@ void renderStroke(const Mat& originImg, Mat& targetImg,
     clipStroke(sobelFilteredImage,centerX,centerY,direction,startPoint,endPoint,
             strokeLength);  
     
-    double brushRadius = randomBrushRadius(BRUSH_RADIUS_1, BRUSH_RADIUS_2);
+    double brushRadius = randomBrushRadius(BRUSH_RADIUS_1, BRUSH_RADIUS_2)/2;
 
     //color to be filled
     Vec3b currColor = originImg.at<Vec3b>(centerY,centerX);
        
-    /* 
-    if(direction.x > 0){
-        startPoint = Point2d(centerX - direction.x * strokeLength/2, centerY - direction.y * strokeLength/2);
-        endPoint = Point2d(centerX + direction.x * strokeLength/2, centerY + direction.y * strokeLength/2);
-    }
-    else{
-        startPoint = Point2d(centerX + direction.x * strokeLength/2, centerY + direction.y * strokeLength/2);
-        endPoint = Point2d(centerX - direction.x * strokeLength/2, centerY - direction.y * strokeLength/2);
-    }
-    cout<<startPoint.x<<" "<<startPoint.y<<endl;
-    cout<<endPoint.x<<" "<<endPoint.y<<endl;
-    */
+    // if(direction.x > 0){
+        // startPoint = Point2d(centerX - direction.x * strokeLength, centerY - direction.y * strokeLength);
+        // endPoint = Point2d(centerX + direction.x * strokeLength, centerY + direction.y * strokeLength);
+    // }
+    // else{
+        // startPoint = Point2d(centerX + direction.x * strokeLength, centerY + direction.y * strokeLength);
+        // endPoint = Point2d(centerX - direction.x * strokeLength, centerY - direction.y * strokeLength);
+    // }
+    
     renderRectangle(startPoint,endPoint,brushRadius,originImg,targetImg,currColor);
-     
+    // line(targetImg,startPoint,endPoint,Scalar(currColor.val[0],currColor.val[1],currColor.val[2]),
+            // 3); 
             // imshow("Target - brushRadius)image",targetImg);
             // waitKey(0);
-    // renderCircle(startPoint,brushRadius,originImg,targetImg,currColor);
+    
+    // line(targetImg,startPoint,endPoint,Scalar(currColor.val[0],currColor.val[1],currColor.val[2]),
+            // 3); 
+    
+    // imshow("Target image",targetImg);
+            // waitKey(0);
+    renderCircle(startPoint,brushRadius,originImg,targetImg,currColor);
 
             // imshow("Target image",targetImg);
             // waitKey(0);
-    // renderCircle(endPoint,brushRadius,originImg,targetImg,currColor);
+    renderCircle(endPoint,brushRadius,originImg,targetImg,currColor);
             // imshow("Target image",targetImg);
             // waitKey(0);
             
@@ -273,7 +285,6 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, double brushRadius,
                     const Mat& originImg, Mat& targetImg, Vec3b currColor){
    
       
-
     Point2d lineDirection = endPoint - startPoint;
     Point2d perpendicular(lineDirection.y, -1 * lineDirection.x);
     perpendicular = perpendicular/cv::norm(perpendicular);
@@ -287,7 +298,7 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, double brushRadius,
     Point2d outerRect2 = startPoint + (brushRadius+FALLOFF) * perpendicular;
     Point2d outerRect3 = endPoint + (brushRadius+FALLOFF) * perpendicular;
     Point2d outerRect4 = endPoint - (brushRadius+FALLOFF) * perpendicular;
-   
+    /* 
     Point pt[1][4];
     pt[0][0] = innerRect1;
     pt[0][1] = innerRect2;
@@ -297,8 +308,7 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, double brushRadius,
     const Point* ppt[1] = {pt[0]};
     int npt[] = {4};
     fillPoly(targetImg,ppt,npt,1,Scalar(currColor.val[0],currColor.val[1],currColor.val[2]),8);
-
-    /*
+    */
     int minimumX = min(outerRect1.x,min(outerRect2.x,min(outerRect3.x,outerRect4.x)));
     int maximumX = max(outerRect1.x,max(outerRect2.x,max(outerRect3.x,outerRect4.x)));
     int minimumY = min(outerRect1.y,min(outerRect2.y,min(outerRect3.y,outerRect4.y)));
@@ -328,15 +338,15 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, double brushRadius,
             }
         }
     }
-    */
 
 }
 
 
 void renderCircle(Point2d center, double brushRadius, const Mat& originImg, Mat& targetImg, Vec3b currColor){
     
+    /* 
     circle(targetImg,center,brushRadius,Scalar(currColor.val[0],currColor.val[1],currColor.val[2]),-1); 
-    /*
+    */
     int minimumX = center.x - brushRadius - FALLOFF;
     int maximumX = center.x + brushRadius + FALLOFF;
     int minimumY = center.y - brushRadius - FALLOFF;
@@ -362,7 +372,6 @@ void renderCircle(Point2d center, double brushRadius, const Mat& originImg, Mat&
             }
         }
     }
-    */
 }
 
 /**
@@ -442,6 +451,9 @@ Point2d calDirection(const Mat& gradientX, const Mat& gradientY, double centerX,
     }
     Point2d direction;
     double angle = 12 * (maxIndex);
+    int randomAngle = randomBrushLength(0,30);
+    angle = angle + randomAngle - 15 + 90;
+    angle = (int)angle % 360;
     if(angle < 90){
         direction.x = 1;
         direction.y = tan(angle*PI/180.0); 
@@ -465,5 +477,10 @@ Point2d calDirection(const Mat& gradientX, const Mat& gradientY, double centerX,
 
 Point2d operator/(const Point2d& p1, double t){
     return Point2d(p1.x/t,p1.y/t);
+}
+
+
+Mat renderImage(const Mat& originImg){
+     
 }
 

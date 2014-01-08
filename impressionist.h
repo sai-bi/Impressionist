@@ -7,11 +7,11 @@
 #include "highgui.h"
 #include <fstream>
 
-#define BRUSH_LENGTH_1 5 
+#define BRUSH_LENGTH_1 4 
 #define BRUSH_LENGTH_2 10
-#define BRUSH_RADIUS_1 4
-#define BRUSH_RADIUS_2 6
-#define FALLOFF 2
+#define BRUSH_RADIUS_1 1
+#define BRUSH_RADIUS_2 1.5
+#define FALLOFF 1
 #define GRADIENT_RADIUS 10
 #define PI 3.1415926
 using namespace std;
