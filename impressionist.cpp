@@ -45,7 +45,9 @@ Mat smoothImage(const Mat& src, Size kernelSize, double sigmaX, double sigmaY){
  * @param endValue
  * @return a random double number
  */
-double randomBrushRadius(double startValue, double endValue){
+double randomBrushRadius(){
+    double startValue = BRUSH_RADIUS_1;
+    double endValue = BRUSH_RADIUS_2; 
     startValue = int(startValue * 10);
     endValue = int(endValue * 10);
     int range = endValue - startValue;
@@ -61,7 +63,9 @@ double randomBrushRadius(double startValue, double endValue){
  * @param endValue
  * @return a random integer
  */
-double randomBrushLength(int startValue, int endValue){
+int randomBrushLength(){
+    int startValue = BRUSH_LENGTH_1;
+    int endValue = BRUSH_LENGTH_2; 
     int range = endValue - startValue;
     srand(time(NULL));
 
@@ -561,7 +565,8 @@ void renderImage(){
     Mat img = imread("./lena.png");
     // Gaussian Blur
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
-    
+    vector<vector<Point2d> > region = readRegionInfo(); 
+
     Mat gradientX;
     Mat gradientY;
     Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
@@ -569,9 +574,111 @@ void renderImage(){
     //calculate intensity image
     Mat intensity = calIntensityImage(blurImage);
     sobelFilter(intensity,graidentX,gradientY,sobelFilteredImage);
-    
+    Mat interPolationGX = zeros(gradientX.rows,gradientX.cols,CV_64FC1);
+    Mat interPolationGY = zeros(gradientX.rows,gradientY.cols,CV_64FC1);
+    vector<vector<Point2d> > selectedRegionPivot;
+    calDirectionWithTPS(gradientX,gradientY,region,interPolationGX,interPolationGY,
+            selectedRegionPivot);
+
+    // render the image region by region
+    for(int i = 0;i < region.size();i++){
+        vector<Point2d> currRegion = region[i];
+        vector<Point2d> currPivot = selectedRegionPivot[i];
+        for(int j = 0;j < currPivot.size();j++){
+            // randomy number of brushes 
+            int brushNum = rand() % (MAXBRUSHNUM - MINBRUSHNUM) + MINBRUSHNUM;
+            getBrushPoints(originImg,interPolationGX,interPolationGY,currPivot[j],brushNum);
+        }
+    } 
       
 }
+
+void getBrushPoints(const Mat& originImg, const Mat& gradientX, const Mat& regionLabel, const Mat& graidentY,
+        Point2d pivot, int brushNum, vector<vector<Point3d> >& brushPoint){
+    Point2d currPoint = pivot;
+    Point2d currDirection;
+    int num = 0;
+    int label = regionLabel.at<int>((int)(currPoint.x),(int)(currPoint.y));
+    while(num < brushNum){
+        currDirection.x = gradientX.at<double>(currPoint.y,currPoint.x);
+        currDirection.y = gradientY.at<double>(currPoint.y,currPoint.x);
+        currDirection = currDirection / norm(currDirection);
+        Point2d endPoint = currPoint;
+        int maxLength = randomBrushLength();
+        while(true){
+            endPoint = endPoint + currDirection;
+            // check label, if different, it means that the brush exceeds the region boundary
+            if(checkPointValid(endPoint,originImg)){
+                endPoint = endPoint - currDirection;
+                break;
+            }
+            int currLabel = regionLabel.at<int>((int)(endPoint.y),(int)(endPoint.y));
+            if(currLabel != label)
+                break;
+            if(norm(currPoint, endPoint) > maxLength)
+                break;
+        }
+        // Point3d: (x,y,alpha)
+        vector<Point3d> currBrush;
+        double radius = randomBrushRadius();
+        renderRectangle(startPoint,endPoint,currBrush,radius); 
+        renderCircle(startPoint,currBrush,radius);
+        renderCircle(endPoint,currBrush,radius);
+            
+        // render next brush
+        currPoint = endPoint;
+    }
+    
+}
+
+
+void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brush, 
+        double radius){
+    Point2d direction = endPoint - startPoint;
+    direction = direction / norm(direction);
+    
+    // find points in triangle
+    Point2d rectangleVertex1 = startPoint - direction * radius;
+    Point2d rectangleVertex2 = startPoint + direction * radius;
+    Point2d rectangleVertex3 = endPoint + direction * radius;
+    Point2d rectangleVertex4 = endPoint - direction * radius;
+    
+    Point2d outerRectangleVertex1 = startPoint - direction * (radius + FALLOFF);
+    Point2d outerRectangleVertex2 = startPoint + direction * (radius + FALLOFF);
+    Point2d outerRectangleVertex3 = endPoint + direction * (radius + FALLOFF);
+    Point2d outerRectangleVertex4 = endPoint - direction * (radius + FALLOFF);
+    
+    int minimumX = min(outerRectangleVertex1.x,min(outerRectangleVertex2.x,min(outerRectangleVertex3.x,outerRectangleVertex4.x)));
+    int minimumY = min(outerRectangleVertex1.y,min(outerRectangleVertex2.y,min(outerRectangleVertex3.y,outerRectangleVertex4.y)));
+    int maximumX = max(outerRectangleVertex1.x,max(outerRectangleVertex2.x,max(outerRectangleVertex3.x,outerRectangleVertex4.x)));
+    int maximumY = max(outerRectangleVertex1.y,max(outerRectangleVertex2.y,max(outerRectangleVertex3.y,outerRectangleVertex4.y)));
+   
+       
+    for(int i = minimumX - 1;i < maximumX + 1;i++){
+        for(int j = minimumY - 1;j < maximumY + 1;j++){
+            Point2d currPoint(i,j);
+            // inner rectangle, set alpha to 1
+            if(pointInRectangle(currPoint,rectangleVertex1,rectangleVertex2,rectangleVertex3,rectangleVertex4)){
+                Point3d temp(i,j,1);     
+                brush.push_back(temp);
+            }
+            else if(pointInRectangle(currPoint,outerRectangleVertex1,outerRectangleVertex2,outerRectangleVertex3,outerRectangleVertex4)){
+                // outer rectangle, calculate alpha value
+            
+            }
+        }
+    }
+}
+
+bool checkPointValid(const Point2d& p, const Mat& img){
+    int x = p.x;
+    int y = p.y;
+    if(x < 0 || y < 0 || x >= img.cols || y >= img.rows)
+        return false;
+    return true;
+}
+
+
 
 bool operator<(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2){    
     if(p1.first < p2.first)
