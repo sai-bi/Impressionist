@@ -643,9 +643,10 @@ void renderByRegion(const vector<vector<Point2d> >& region){
                 direction.x = smoothGradientX.at<float>(y,x);
                 direction.y = smoothGradientY.at<float>(y,x); 
                 direction = direction / norm(direction);
-                clipStroke(sobelFilteredImage,currPosition.x,currPosition.y,startPoint,endPoint,
-                        direction);
-                renderTriangle  
+                double strokeLength = randomBrushLength()
+                clipStroke(sobelFilteredImage,currPosition.x,currPosition.y,direction,startPoint,endPoint,
+                        direction,);
+                renderTriangle(startPoint,endPoint,originImg,)  
             } 
         }
     }
