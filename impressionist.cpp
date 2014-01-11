@@ -478,177 +478,108 @@ Point2d calDirection(const Mat& gradientX, const Mat& gradientY, double centerX,
 Point2d operator/(const Point2d& p1, double t){
     return Point2d(p1.x/t,p1.y/t);
 }
-
-/*
-Mat renderImage(const Mat& originImg, vector<vector<Point2d> > region){
-    Mat targetImg;
-    // render region by region
-    // for each region, find the position with maximum gradients,
-    // start from these positions to render the whole image.
-    for(int i = 0;i < region.size();i++){
-        vector<Point2d> currRegion = region[i];
-        //find the points with greatest region
-
-    }
-}
-*/
-
 /**
- * Given the gradient in x direction, for each region, we find positions
- * with maximum graident, and for other positions, their gradient value
- * are got through interpolation;
- * In the paper, this is replaced with "thin plate spline";
+ * Find points with maximum gradient, use them as pivot points, and 
+ * do interpolation for other points to get their graident so as to 
+ * get a smooth result.
  */
-void calDirectionWithTPS(const Mat& gradientX, Mat& smoothGradientX,
-            const vector<vector<Point2d> >& region){
-
-    smoothGradientX = Mat::zeros(gradientX.rows,gradientX.cols,CV_32FC1);
-
+void calDirectionWithTPS(const Mat& graidentX, const Mat& graidentY, 
+        const vector<vector<Point2d> > region, Mat& interPolationGX, 
+        Mat& interPolationGY, vector<vector<Point2d> >& selectedRegionPivot){
     for(int i = 0;i < region.size();i++){
         vector<Point2d> currRegion = region[i];
-        vector<pair<double, Point2d> > currGradientX;
-        for(int j = 0;j < currRegion.size();j++){
-            int x = currRegion[i].x;
-            int y = currRegion[i].y;
-            pair temp;
-            temp.first = gradientX.at<short int>(y,x);
-            temp.second = currRegion[j];
-            currGradientX.push_back(temp);
+        // a pair, first is graident value, second is the position of the point
+        vector<pair<double, Point2d> > gradientPointPair;
+        for(int j = 0;j < currRegion.size();i++){
+            pair<double, Point2d> temp;
+            double temp1 = gradientX.at<short int>(currRegion[i].y,currRegion[i].x);
+            double temp2 = graidentY.at<short int>(currRegion[i].y,currRegion[i].x);
+            temp.first = temp1 * temp1 + temp2 * temp2;
+            temp.second = currRegion[i];
+            gradientPointPair.push_back(temp);
         }
-        //sort gradient and find maximum
-        sort(currGradientX.begin(),currGradientX.end());
+        
+        //sort the pair vector
+        sort(gradientPointPair.begin(),gradientPointPair.end());
 
-        vector<pair<double, Point2d> > interpolationPoints;
-        for(int j = 0;j < currGradientX.size();i++){
-            //get current point
-            if(interpolationPoints.size() > MAXINTERPOLATIONNUM)
+        vector<Point2d> selectedPivot;
+        int selectedCount = 0;
+        for(int j = 0;j < gradientPointPair.size();j++){
+            if(selectedCount > FIXEDPIVOTNUM)
                 break;
-            pair<double, Point2d> temp = currGradientX[j];
-            bool flag  = true;
-            for(int k = 0;k < interpolationPoints.size();k++){
-                // seleced points should not be too close, therefore we set a minimum distance
-                if(norm::(interpolationPoints[i].second - temp.second) < INTERPOLATIONRANGE){
+            Point2d currPoint = gradientPointPair[j].second;
+            bool flag = true;
+            for(int k = 0;k < selectedPivot.size();k++){
+                if(norm(currPoint - selectedPivot[k]) < MINPIVOTDIST){
                     flag = false;
-                    break;
+                    break;  
                 }
-            }
+            } 
             if(flag){
-                interpolationPoints.push_back(temp);
+                selectedPivot.push_back(currPoint);
+                selectedCount++;
             }
         }
-
-        for(int j = 0;j < interpolationPoints.size();j++){
-            int x = interpolationPoints[j].second.x;
-            int y = interpolationPoints[j].second.y;
-            double value = interpolationPoints[j].first;
-            smoothGradientX.at<float>(y,x) = value;
-        }
-
+        selectedRegionPivot.push_back(selectedPivot); 
+        // now do interpolation
+        
         for(int j = 0;j < currRegion.size();j++){
-            vector<double> efficient;
-            double distanceSum = 0;
-            bool flag = false;
-            int x = currRegion[i].x;
-            int y = currRegion[i].y;
-            for(int k = 0;k < interpolationPoints.size();k++){
-                double temp = norm(interpolationPoints[i].second - currRegion[i]);
-                if(temp < 1e-5){
+            Point2d currPoint = currRegion[j];
+            vector<double> dist;
+            double distSum = 0;
+            bool flag = false; 
+            for(int k = 0;k < selectedPivot.size();k++){
+                double temp = norm(currPoint - selectedPivot[k]);
+                // for pivot points, set gradient directly
+                if(temp < 1e-6){
+                    interPolationGX.at<double>(currPoint.y,currPoint.x) = gradientX.at<short int>(currPoint.y,currPoint.x);
+                    interPolationGY.at<double>(currPoint.y,currPoint.x) = gradientY.at<short int>(currPoint.y,currPoint.x);
                     flag = true;
                     break;
                 }
-                efficient.push_back(1.0/temp);
-                distanceSum += 1.0/temp;
+                distSum += 1.0/temp;
+                dist.push_back(1.0/temp);
             }
-
             if(flag)
                 continue;
-            double gradientValue = 0;
-            for(int k = 0;k < efficient.size();k++){
-                gradientValue = gradientValue + interpolationPoints[k].first * efficient[i]/distanceSum;
-            }
-            smoothGradientX.at<float>(y,x) = gradientValue;
+            double gx = 0;
+            double gy = 0;
+            for(int k = 0;k < dist.size();k++){
+                double temp1 = gradientX.at<short int>(selectedPivot[k].y,selectedPivot[k].x);
+                double temp2 = gradientY.at<short int>(selectedPivot[k].y,selectedPivot[k].x);
+                gx = gx + temp1 * dist[k]/distSum;
+                gy = gy + temp2 * dist[k]/distSum;    
+            } 
+            interPolationGX.at<double>(currPoint.y,currPoint.x) = gx;
+            interPolationGY.at<double>(currPoint.y,currPoint.x) = gy; 
         }
-
     }
 }
 
-/**
- * Operator overload for comparing two "pairs";
- */
-bool operator<(const pair<double,Point2d>& p1, const pair<double,Point2d>& p2){
-    if(p1.first < p2.first)
-        return false;
-    return true;
-}
 
-
-void renderByRegion(const vector<vector<Point2d> >& region){
-    //read image
+void renderImage(){
     Mat img = imread("./lena.png");
+    // Gaussian Blur
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
-
+    
     Mat gradientX;
     Mat gradientY;
-    Mat sobelFilteredImage;
+    Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
+    Mat sobelFilteredImage; 
+    //calculate intensity image
     Mat intensity = calIntensityImage(blurImage);
-    intensity = smoothImage(intensity,cv::Size(11,11),0,0);
-    sobelFilter(intensity,gradientX,gradientY,sobelFilteredImage);
-
-    Mat smoothGradientX;
-    Mat smoothGradientY;
-    calDirectionWithTPS(gradientX,smoothGradientX,region);
-    calDirectionWithTPS(gradientY,smoothGradientY,region);
-
-    //render region by region
-    for(int i = 0;i < region.size();i++){
-        // find start points of brush
-        vector<Point2d> currRegion = region[i];
-        vector<pair<double,Point2d> > regionPair;
-        for(int j = 0;j < currRegion.size();j++){
-            int x = currRegion[j].x;
-            int y = currRegion[j].y;
-            pair<double,Point2d> temp;
-            double temp1 = smoothGradientX.at<float>(y,x);
-            double temp2 = smoothGradientY.at<float>(y,x);
-            temp.first = sqrt(temp1*temp1 + temp2*temp2);
-            temp.second = currRegion[j];
-            regionPair.push_back(temp);
-        }
-        sort(regionPair.begin(),regionPair.end());
-
-        // find some points
-        vector<pair<double,Point2d> > selecedStart;
-        for(int j = 0;j < regionPair.size();i++){
-            bool flag = true;
-            for(int k = 0;k < selecedStart.size();k++){
-                if(norm(regionPair[j].second - selecedStart[k].second) < PLACEBRUHSPOS){
-                    flag = false;
-                    break;
-                }
-                selecedStart.push_back(regionPair[j]);
-            }
-        }
-
-        //start put brushes
-        for(int j = 0;j < selecedStart.size();j++){
-            Point2d currPosition = selecedStart[i].second;
-            int brushCount = 0;
-            int maxBrushNum = randomInt(MINBRUSHNUM,MAXBRUSHNUM);
-            vector<Point2d> brushPoints;
-            vector<Point2d> brushPointsWithBlend; 
-            Point2d startPoint;
-            Point2d endPoint;
-            while(brushCount < maxBrushNum){
-                Point2d direction;
-                direction.x = smoothGradientX.at<float>(y,x);
-                direction.y = smoothGradientY.at<float>(y,x); 
-                direction = direction / norm(direction);
-                double strokeLength = randomBrushLength()
-                clipStroke(sobelFilteredImage,currPosition.x,currPosition.y,direction,startPoint,endPoint,
-                        direction,);
-                renderTriangle(startPoint,endPoint,originImg,)  
-            } 
-        }
-    }
+    sobelFilter(intensity,graidentX,gradientY,sobelFilteredImage);
+    
+      
 }
+
+bool operator<(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2){    
+    if(p1.first < p2.first)
+        return false;
+    else
+        return true;
+}
+
+
+
 
