@@ -24,9 +24,9 @@ using namespace std;
 using namespace cv;
 
 struct myPair{
-    
-}
-
+    double value;
+    int index;
+};
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel);
 
 void readParameters(char*);
@@ -77,7 +77,9 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brus
 
 bool checkPointValid(const Point2d& p, const Mat& img);
 
-bool pairCompare(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2);
+bool pairCompare( pair<double,int>& p1,  pair<double, int>& p2);
+
+// bool pairCompare( myPair& p1,  myPair& p2);
 
 void mySort(vector<pair<double,Point2d> >& mypair);
 

@@ -156,19 +156,23 @@ void calDirectionWithTPS(const Mat& gradientX, const Mat& gradientY,
     for(int i = 0;i < region.size();i++){
         vector<Point2d> currRegion = region[i];
         // a pair, first is gradient value, second is the position of the point
-        vector<pair<double, Point2d> > gradientPointPair;
-        cout<<currRegion.size()<<endl;
+        vector<pair<double, int> > gradientPointPair;
+        // vector<myPair> gradientPointPair;
         for(int j = 0;j < currRegion.size();j++){
-            pair<double, Point2d> temp;
+            pair<double, int> temp;
+            // myPair temp;
             double temp1 = gradientX.at<short int>(currRegion[j].y,currRegion[j].x);
             double temp2 = gradientY.at<short int>(currRegion[j].y,currRegion[j].x);
-            temp.first = temp1 * temp1 + temp2 * temp2;
-            temp.second = currRegion[j];
+            temp.first = 0 - (temp1 * temp1 + temp2 * temp2);
+            temp.second = j;
+            // temp.value = temp1 * temp1 + temp2 * temp2;
+            // temp.index = j;
             gradientPointPair.push_back(temp);
         }
         //sort the pair vector
         cout<<gradientPointPair.size()<<endl;
-        std::sort(gradientPointPair.begin(),gradientPointPair.end(),pairCompare);
+        std::sort(gradientPointPair.begin(),gradientPointPair.end());
+        cout<<"sort finished"<<endl;
         // mySort(gradientPointPair);
         // select pivot points to calculate the gradient of other points
         // the pivot points are ones with maximum gradient  
@@ -177,7 +181,8 @@ void calDirectionWithTPS(const Mat& gradientX, const Mat& gradientY,
         for(int j = 0;j < gradientPointPair.size();j++){
             if(selectedCount > FIXEDPIVOTNUM)
                 break;
-            Point2d currPoint = gradientPointPair[j].second;
+            // Point2d currPoint = gradientPointPair[j].second;
+            Point2d currPoint = currRegion[gradientPointPair[j].second];
             bool flag = true;
             //every pivot points should not be closer than a threhold MINPIVOTDIST
             for(int k = 0;k < selectedPivot.size();k++){
@@ -249,7 +254,7 @@ void mySort(vector<pair<double,Point2d> >& mypair){
 
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
     ifstream fin;
-    fin.open("./249061.txt");
+    fin.open("./385028.txt");
     int temp;
     vector<Point2d> a[50];  
     int count = -1;
@@ -270,7 +275,7 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
 }
 
 void renderImage(){
-    Mat img = imread("./249061.jpg");
+    Mat img = imread("./385028.jpg");
     // Gaussian Blur
     cout<<"Image blur..."<<endl;
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
@@ -282,6 +287,7 @@ void renderImage(){
     Mat regionLabel = Mat::zeros(img.rows,img.cols,CV_32SC1);
     readRegionInfo(region,regionLabel);
 
+    /*
     Mat regionImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
     for(int i = 0;i < region.size();i++){
         cout<<region[i].size()<<endl;
@@ -297,6 +303,7 @@ void renderImage(){
         waitKey(0);
     } 
     imshow("Region Image",regionImg);
+    */
     Mat gradientX;
     Mat gradientY;
     Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
@@ -363,6 +370,8 @@ void renderImage(){
                     count++;
                 }
             }
+            if(count == 0)
+                continue;
             r = r/count;
             g = g/count;
             b = b/count;
@@ -529,13 +538,19 @@ bool checkPointValid(const Point2d& p, const Mat& img){
 }
 
 
-
-bool pairCompare(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2){    
+bool pairCompare(pair<double,int>& p1, pair<double, int>& p2){    
     if(p1.first < p2.first)
         return false;
     else
         return true;
-}
+} 
+
+// bool pairCompare( myPair& p1,  myPair& p2){
+    // if(p1.value < p2.value)
+        // return false;
+    
+    // return true;
+// }
 
 
 
