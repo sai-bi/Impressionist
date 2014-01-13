@@ -9,23 +9,6 @@
 
 
 /**
- * @param fileName name of the text file.
- * Read parameters from a text file, and the text file is in the format of "
- * parameterName value" for each line.
- */
-void readParameters(char* fileName){
-    ifstream fin;
-    fin.open(fileName);
-    if(fin.is_open()){
-        string parameterName;
-        double value;
-        while(fin>>parameterName>>value){
-            // assign value to corresponding parameters
-        }
-    }
-}
-
-/**
  * @param src source images
  * @param kernelSize Gaussian kernel size
  * @param sigmaX Gaussian kernel standard deviation in X direction
@@ -274,36 +257,24 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
      
 }
 
-void renderImage(){
-    Mat img = imread("./385028.jpg");
+// void renderImage(){
+Mat renderImage(const Mat& img, const Mat& regionLabel, const vector<vector<Point2d>& region);
+      
+    // Mat img = imread("./385028.jpg");
     // Gaussian Blur
     cout<<"Image blur..."<<endl;
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
     imshow("Blur Image",blurImage); 
 
     //read region information 
-    cout<<"Read region info..."<<endl;
-    vector<vector<Point2d> > region;
-    Mat regionLabel = Mat::zeros(img.rows,img.cols,CV_32SC1);
-    readRegionInfo(region,regionLabel);
+    // cout<<"Read region info..."<<endl;
+    // vector<vector<Point2d> > region;
+    // Mat regionLabel = Mat::zeros(img.rows,img.cols,CV_32SC1);
+    // readRegionInfo(region,regionLabel);
 
-    /*
-    Mat regionImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
-    for(int i = 0;i < region.size();i++){
-        cout<<region[i].size()<<endl;
-        for(int j = 0;j < region[i].size();j++){
-            int x = region[i][j].x;
-            int y = region[i][j].y;
-            int label = regionLabel.at<int>(y,x);
-            regionImg.at<Vec3b>(y,x).val[0] = (label * 20)%256;
-            regionImg.at<Vec3b>(y,x).val[1] = (label * 20)%256;
-            regionImg.at<Vec3b>(y,x).val[2] = (label * 20)%256;
-        }
-        imshow("Region Image",regionImg);
-        waitKey(0);
-    } 
-    imshow("Region Image",regionImg);
-    */
+    
+    
+
     Mat gradientX;
     Mat gradientY;
     Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
@@ -360,7 +331,7 @@ void renderImage(){
             for(int k = 0;k < brushPoint.size();k++){
                 Point2d currPoint(brushPoint[k].x,brushPoint[k].y); 
                 int label = regionLabel.at<int>(currPoint.y,currPoint.x);
-                if(label != pivotLabel)
+                if(label != pivotLabel && label != pivotLabel + 1000000)
                     continue;
                 if(checkPointValid(currPoint,img)){
                     Vec3b color = img.at<Vec3b>(currPoint.y,currPoint.x);
@@ -401,7 +372,9 @@ void renderImage(){
         }
     }
 
-    waitKey(0); 
+    waitKey(0);
+
+    return targetImg; 
       
 }
 
@@ -430,7 +403,6 @@ void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& grad
             }
             int currLabel = regionLabel.at<int>((int)(endPoint.y),(int)(endPoint.x));
             if(currLabel != label){
-
                 break;
             }
             if(cv::norm(currPoint-endPoint) > maxLength){
