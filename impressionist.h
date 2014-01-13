@@ -6,21 +6,26 @@
 #include "cv.h"
 #include "highgui.h"
 #include <fstream>
-
-#define BRUSH_LENGTH_1 4 
-#define BRUSH_LENGTH_2 10
-#define BRUSH_RADIUS_1 1
-#define BRUSH_RADIUS_2 1.5
-#define FALLOFF 1
+#include <utility>
+#include <algorithm>
+#define BRUSH_LENGTH_1 30 
+#define BRUSH_LENGTH_2 50
+#define BRUSH_RADIUS_1 1.5
+#define BRUSH_RADIUS_2 2.5
+#define FALLOFF 5
 #define GRADIENT_RADIUS 10
 #define PI 3.1415926
 #define MAXBRUSHNUM 10
 #define MINBRUSHNUM 5
-#define FIXEDPIVOTNUM 8
-#define MINPIVOTDIST 15
+#define FIXEDPIVOTNUM 200
+#define MINPIVOTDIST 10
 
 using namespace std;
 using namespace cv;
+
+struct myPair{
+    
+}
 
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel);
 
@@ -51,8 +56,8 @@ double operator*(const Point2d& p1, const Point2d& p2);
 Point2d operator/(const Point2d& p1, double t);
 
 
-void calDirectionWithTPS(const Mat& graidentX, const Mat& graidentY, 
-        const vector<vector<Point2d> > region, Mat& interPolationGX, 
+void calDirectionWithTPS(const Mat& gradientX, const Mat& gradientY, 
+        const vector<vector<Point2d> >& region, Mat& interPolationGX, 
         Mat& interPolationGY, vector<vector<Point2d> >& selectedRegionPivot);
 
 
@@ -72,7 +77,8 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brus
 
 bool checkPointValid(const Point2d& p, const Mat& img);
 
-bool operator<(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2);
+bool pairCompare(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2);
 
+void mySort(vector<pair<double,Point2d> >& mypair);
 
 #endif

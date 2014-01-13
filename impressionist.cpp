@@ -150,25 +150,26 @@ Point2d operator/(const Point2d& p1, double t){
  * do interpolation for other points to get their graident so as to 
  * get a smooth result.
  */
-void calDirectionWithTPS(const Mat& graidentX, const Mat& graidentY, 
-        const vector<vector<Point2d> > region, Mat& interPolationGX, 
+void calDirectionWithTPS(const Mat& gradientX, const Mat& gradientY, 
+        const vector<vector<Point2d> >& region, Mat& interPolationGX, 
         Mat& interPolationGY, vector<vector<Point2d> >& selectedRegionPivot){
     for(int i = 0;i < region.size();i++){
         vector<Point2d> currRegion = region[i];
-        // a pair, first is graident value, second is the position of the point
+        // a pair, first is gradient value, second is the position of the point
         vector<pair<double, Point2d> > gradientPointPair;
-        for(int j = 0;j < currRegion.size();i++){
+        cout<<currRegion.size()<<endl;
+        for(int j = 0;j < currRegion.size();j++){
             pair<double, Point2d> temp;
-            double temp1 = gradientX.at<short int>(currRegion[i].y,currRegion[i].x);
-            double temp2 = graidentY.at<short int>(currRegion[i].y,currRegion[i].x);
+            double temp1 = gradientX.at<short int>(currRegion[j].y,currRegion[j].x);
+            double temp2 = gradientY.at<short int>(currRegion[j].y,currRegion[j].x);
             temp.first = temp1 * temp1 + temp2 * temp2;
-            temp.second = currRegion[i];
+            temp.second = currRegion[j];
             gradientPointPair.push_back(temp);
         }
-        
         //sort the pair vector
-        sort(gradientPointPair.begin(),gradientPointPair.end());
-
+        cout<<gradientPointPair.size()<<endl;
+        std::sort(gradientPointPair.begin(),gradientPointPair.end(),pairCompare);
+        // mySort(gradientPointPair);
         // select pivot points to calculate the gradient of other points
         // the pivot points are ones with maximum gradient  
         vector<Point2d> selectedPivot;
@@ -193,7 +194,6 @@ void calDirectionWithTPS(const Mat& graidentX, const Mat& graidentY,
 
         selectedRegionPivot.push_back(selectedPivot); 
         // now do interpolation
-        
         for(int j = 0;j < currRegion.size();j++){
             Point2d currPoint = currRegion[j];
             vector<double> dist;
@@ -227,6 +227,26 @@ void calDirectionWithTPS(const Mat& graidentX, const Mat& graidentY,
     }
 }
 
+void mySort(vector<pair<double,Point2d> >& mypair){
+    for(int i = 0;i < mypair.size();i++){
+        double minValue = mypair[i].first;
+        int minIndex = i;
+        for(int j = i+1;j < mypair.size();j++){
+            if(mypair[j].first > minValue){
+                minValue = mypair[j].first;
+                minIndex = j;
+            }
+        }
+        pair<double,Point2d> temp;
+        temp = mypair[i];
+        mypair[i] = mypair[minIndex];
+        mypair[minIndex] = temp;
+    }
+}
+
+
+
+
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
     ifstream fin;
     fin.open("./249061.txt");
@@ -252,50 +272,89 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
 void renderImage(){
     Mat img = imread("./249061.jpg");
     // Gaussian Blur
+    cout<<"Image blur..."<<endl;
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
-    
+    imshow("Blur Image",blurImage); 
+
     //read region information 
+    cout<<"Read region info..."<<endl;
     vector<vector<Point2d> > region;
     Mat regionLabel = Mat::zeros(img.rows,img.cols,CV_32SC1);
-    readRegionInfo(region,regionLabel); 
+    readRegionInfo(region,regionLabel);
 
+    Mat regionImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
+    for(int i = 0;i < region.size();i++){
+        cout<<region[i].size()<<endl;
+        for(int j = 0;j < region[i].size();j++){
+            int x = region[i][j].x;
+            int y = region[i][j].y;
+            int label = regionLabel.at<int>(y,x);
+            regionImg.at<Vec3b>(y,x).val[0] = (label * 20)%256;
+            regionImg.at<Vec3b>(y,x).val[1] = (label * 20)%256;
+            regionImg.at<Vec3b>(y,x).val[2] = (label * 20)%256;
+        }
+        imshow("Region Image",regionImg);
+        waitKey(0);
+    } 
+    imshow("Region Image",regionImg);
     Mat gradientX;
     Mat gradientY;
     Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
     Mat sobelFilteredImage; 
     //calculate intensity image
+    cout<<"Calculate intensity image..."<<endl; 
     Mat intensity = calIntensityImage(blurImage);
     //smooth intensity image
     intensity = smoothImage(img,cv::Size(21,21),0,0);
 
-    sobelFilter(intensity,graidentX,gradientY,sobelFilteredImage);
+    sobelFilter(intensity,gradientX,gradientY,sobelFilteredImage);
     
-    Mat interPolationGX = zeros(gradientX.rows,gradientX.cols,CV_64FC1);
-    Mat interPolationGY = zeros(gradientX.rows,gradientY.cols,CV_64FC1);
+    Mat interPolationGX = Mat::zeros(gradientX.rows,gradientX.cols,CV_64FC1);
+    Mat interPolationGY = Mat::zeros(gradientX.rows,gradientY.cols,CV_64FC1);
     
     vector<vector<Point2d> > selectedRegionPivot;
     //calculate the gradient of each point
+    cout<<"Calculate gradient..."<<endl;
     calDirectionWithTPS(gradientX,gradientY,region,interPolationGX,interPolationGY,
             selectedRegionPivot);
 
     // render the image region by region
+    cout<<"Render image region by region..."<<endl;
+    
+    // record whether a pivot has been covered or not, if not, draw brush there
+    // otherwise, do nothing
+    Mat hasDrawn = Mat::zeros(img.rows,img.cols,CV_32SC1);
     for(int i = 0;i < region.size();i++){
         vector<Point2d> currRegion = region[i];
         vector<Point2d> currPivot = selectedRegionPivot[i];
+        cout<<"Pivot size: "<<currRegion.size()<<" "<<currPivot.size()<<endl;
         for(int j = 0;j < currPivot.size();j++){
             // randomy number of brushes 
+            // if(hasDrawn.at<int>(currPivot[j].y,currPivot[j].x) != 0){
+                // continue;
+            // }
+
             int brushNum = rand() % (MAXBRUSHNUM - MINBRUSHNUM) + MINBRUSHNUM;
             vector<Point3d> brushPoint;
-            getBrushPoints(originImg,regionLabel,interPolationGX,interPolationGY,currPivot[j],brushNum,brushPoint);
-            
+            cout<<"Get brush points..."<<endl;
+            getBrushPoints(img,regionLabel,interPolationGX,interPolationGY,currPivot[j],brushNum,brushPoint);
+            cout<<"Get brush points finished..."<<endl; 
             // paint the brushes
             int r = 0;
             int g = 0;
             int b = 0;
             int count = 0; 
+            
+            // pivot label
+            int pivotLabel = regionLabel.at<int>(currPivot[j].y,currPivot[j].x);
             // get average color
+            if(brushPoint.size() == 0)
+                continue;
             for(int k = 0;k < brushPoint.size();k++){
                 Point2d currPoint(brushPoint[k].x,brushPoint[k].y); 
+                int label = regionLabel.at<int>(currPoint.y,currPoint.x);
+                if(label != pivotLabel)
+                    continue;
                 if(checkPointValid(currPoint,img)){
                     Vec3b color = img.at<Vec3b>(currPoint.y,currPoint.x);
                     r = r + (int)color.val[2];
@@ -312,7 +371,10 @@ void renderImage(){
 
                 int x = brushPoint[k].x;
                 int y = brushPoint[k].y;
-                if(!checkPointValid(Point2d(x,y),originImg)){
+                int label = regionLabel.at<int>(y,x);
+                if(label != pivotLabel)
+                    continue;
+                if(!checkPointValid(Point2d(x,y),img)){
                     continue;
                 }
                 double alpha = brushPoint[k].z;
@@ -322,45 +384,64 @@ void renderImage(){
                 targetImg.at<Vec3b>(y,x).val[0] = (uchar)(int)( (1-alpha)*b + alpha * backgroundB); 
                 targetImg.at<Vec3b>(y,x).val[1] = (uchar)(int)((1-alpha)*g + alpha * backgroundG);
                 targetImg.at<Vec3b>(y,x).val[2] = (uchar)(int)((1-alpha)*r + alpha * backgroundR);
-            }   
+
+                // hasDrawn.at<int>(y,x) = 1;
+            }  
+            imshow("Target Image", targetImg);
+            waitKey(5);
         }
-    } 
+    }
+
+    waitKey(0); 
       
 }
 
-void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& gradientX, const Mat& graidentY,
+void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& gradientX, const Mat& gradientY,
         Point2d pivot, int brushNum, vector<Point3d>& brushPoint){
     Point2d currPoint = pivot;
     Point2d currDirection;
     int num = 0;
-    int label = regionLabel.at<int>((int)(currPoint.x),(int)(currPoint.y));
+    int label = regionLabel.at<int>((int)(currPoint.y),(int)(currPoint.x));
     while(num < brushNum){
-        currDirection.x = gradientX.at<double>(currPoint.y,currPoint.x);
-        currDirection.y = gradientY.at<double>(currPoint.y,currPoint.x);
+        currDirection.x = gradientY.at<double>(currPoint.y,currPoint.x);
+        currDirection.y = 0 - gradientX.at<double>(currPoint.y,currPoint.x);
+        if(norm(currDirection) == 0)
+            return;
         currDirection = currDirection / norm(currDirection);
+        // cout<<currDirection.x<<" "<<currDirection.y<<endl;
         Point2d endPoint = currPoint;
         int maxLength = randomBrushLength();
         while(true){
             endPoint = endPoint + currDirection;
             // check label, if different, it means that the brush exceeds the region boundary
-            if(checkPointValid(endPoint,originImg)){
+            if(!checkPointValid(endPoint,originImg)){
+                // cout<<"invalid point exit..."<<endl;
                 endPoint = endPoint - currDirection;
                 break;
             }
-            int currLabel = regionLabel.at<int>((int)(endPoint.y),(int)(endPoint.y));
-            if(currLabel != label)
+            int currLabel = regionLabel.at<int>((int)(endPoint.y),(int)(endPoint.x));
+            if(currLabel != label){
+
                 break;
-            if(norm(currPoint, endPoint) > maxLength)
+            }
+            if(cv::norm(currPoint-endPoint) > maxLength){
                 break;
+            }
         }
+        // if(currPoint.x == endPoint.x && currPoint.y == endPoint.y)
+            // return;  
         // Point3d: (x,y,alpha)
         double radius = randomBrushRadius();
-        renderRectangle(startPoint,endPoint,brushPoint,radius); 
-        renderCircle(startPoint,brushPoint,radius);
+        // cout<<currPoint.x<<" "<<currPoint.y << " "<<endPoint.x<<" "<<endPoint.y<<endl;
+        cout<<"Start rendering..."<<endl;
+        renderRectangle(currPoint,endPoint,brushPoint,radius); 
+        cout<<"End rendering..."<<endl;
+        renderCircle(currPoint,brushPoint,radius);
         renderCircle(endPoint,brushPoint,radius);
-            
+         
         // render next brush
         currPoint = endPoint;
+        num++;
     }
     
 }
@@ -392,6 +473,8 @@ void renderCircle(Point2d center, vector<Point3d>& brush, double radius){
 void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brush, 
         double radius){
     Point2d direction = endPoint - startPoint;
+    if(norm(direction) < 1e-6)
+        return;    
     direction = direction / norm(direction);
     Point2d perpendicular(direction.y, -1 * direction.x);
     perpendicular = perpendicular / cv::norm(perpendicular);
@@ -417,10 +500,12 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brus
             Point2d currPoint(i,j);
             // inner rectangle, set alpha to 1
             if(pointInRectangle(currPoint,rectangleVertex1,rectangleVertex2,rectangleVertex3,rectangleVertex4)){
+                // cout<<"hello world"<<endl;
                 Point3d temp(i,j,0);     
                 brush.push_back(temp);
             }
             else if(pointInRectangle(currPoint,outerRectangleVertex1,outerRectangleVertex2,outerRectangleVertex3,outerRectangleVertex4)){
+                // cout<<"hello world"<<endl;
                 // outer rectangle, calculate alpha value
                 Point2d temp(startPoint.x-i,startPoint.y-j);
                 double dotProduct = temp.x * perpendicular.x + temp.y * perpendicular.y;
@@ -445,7 +530,7 @@ bool checkPointValid(const Point2d& p, const Mat& img){
 
 
 
-bool operator<(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2){    
+bool pairCompare(const pair<double,Point2d>& p1, const pair<double, Point2d>& p2){    
     if(p1.first < p2.first)
         return false;
     else
