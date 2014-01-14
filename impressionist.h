@@ -29,7 +29,6 @@ struct myPair{
 };
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel);
 
-void readParameters(char*);
 
 Mat smoothImage(const Mat& src, Size kernelSize, double sigmaX, double sigmaY);
 
