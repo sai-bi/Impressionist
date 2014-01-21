@@ -258,7 +258,7 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
 }
 
 // void renderImage(){
-Mat renderImage(const Mat& img, const Mat& regionLabel, const vector<vector<Point2d>& region);
+Mat renderImage(const Mat& img, const Mat& regionLabel, const vector<vector<Point2d> >& region){
       
     // Mat img = imread("./385028.jpg");
     // Gaussian Blur
