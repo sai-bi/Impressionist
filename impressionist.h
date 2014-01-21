@@ -17,7 +17,7 @@
 #define PI 3.1415926
 #define MAXBRUSHNUM 10
 #define MINBRUSHNUM 5
-#define FIXEDPIVOTNUM 200
+#define FIXEDPIVOTNUM 2000
 #define MINPIVOTDIST 10
 
 using namespace std;
@@ -82,5 +82,9 @@ bool pairCompare( pair<double,int>& p1,  pair<double, int>& p2);
 // bool pairCompare( myPair& p1,  myPair& p2);
 
 void mySort(vector<pair<double,Point2d> >& mypair);
+
+
+void hsv2rgb(double H, double S, double V, double& R, double &G, double& B);
+void rgb2hsv(double R, double G, double B, double &H, double &S, double &V);
 
 #endif

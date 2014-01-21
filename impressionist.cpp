@@ -21,6 +21,7 @@ void readParameters(char* fileName){
         double value;
         while(fin>>parameterName>>value){
             // assign value to corresponding parameters
+
         }
     }
 }
@@ -121,7 +122,7 @@ void sobelFilter(const Mat& src, Mat& gradientX, Mat& gradientY, Mat& gradient){
  * in a rectangle ABCD iff (0<AM*AB<AB*AB) and (0<AM*AD<AD*AD);
  */
 bool pointInRectangle(const Point2d& point, const Point2d& rectangle1, const Point2d& rectangle2,
-                    const Point2d& rectangle3, const Point2d& rectangle4){
+        const Point2d& rectangle3, const Point2d& rectangle4){
     double temp1 = (point - rectangle1) * (rectangle2 - rectangle1);
     double temp2 = (rectangle2 - rectangle1) * (rectangle2 - rectangle1);
     if(temp1 > temp2 || temp1 < 0)
@@ -258,20 +259,21 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
     int temp;
     vector<Point2d> a[50];  
     int count = -1;
+
     for(int i = 0;i < regionLabel.rows;i++){
         for(int j = 0;j < regionLabel.cols;j++){
             fin>>temp;
             regionLabel.at<int>(i,j) = temp;
             a[temp-1].push_back(Point2d(j,i));
             if(temp > count) 
-               count = temp; 
+                count = temp; 
         }
     }  
 
     for(int i = 0;i < count;i++){
-       region.push_back(a[i]); 
+        region.push_back(a[i]); 
     }
-     
+
 }
 
 void renderImage(){
@@ -287,23 +289,43 @@ void renderImage(){
     Mat regionLabel = Mat::zeros(img.rows,img.cols,CV_32SC1);
     readRegionInfo(region,regionLabel);
 
-    /*
-    Mat regionImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
-    for(int i = 0;i < region.size();i++){
-        cout<<region[i].size()<<endl;
+
+    vector<Point3d> averageColor; 
+    for(int i = 0;i <region.size();i++){
+        int r = 0;
+        int g = 0;
+        int b = 0;
         for(int j = 0;j < region[i].size();j++){
-            int x = region[i][j].x;
-            int y = region[i][j].y;
-            int label = regionLabel.at<int>(y,x);
-            regionImg.at<Vec3b>(y,x).val[0] = (label * 20)%256;
-            regionImg.at<Vec3b>(y,x).val[1] = (label * 20)%256;
-            regionImg.at<Vec3b>(y,x).val[2] = (label * 20)%256;
+            Vec3b temp = img.at<Vec3b>((int)region[i][j].y,(int)region[i][j].x);
+            r = r + temp.val[2];
+            g = g + temp.val[1];
+            b = b + temp.val[0]; 
         }
-        imshow("Region Image",regionImg);
-        waitKey(0);
-    } 
-    imshow("Region Image",regionImg);
-    */
+        r = r / region[i].size();
+        g = g / region[i].size();
+        b = b / region[i].size();
+
+        averageColor.push_back(Point3d(r,g,b));
+    }
+
+
+    /*
+       Mat regionImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
+       for(int i = 0;i < region.size();i++){
+       cout<<region[i].size()<<endl;
+       for(int j = 0;j < region[i].size();j++){
+       int x = region[i][j].x;
+       int y = region[i][j].y;
+       int label = regionLabel.at<int>(y,x);
+       regionImg.at<Vec3b>(y,x).val[0] = (label * 20)%256;
+       regionImg.at<Vec3b>(y,x).val[1] = (label * 20)%256;
+       regionImg.at<Vec3b>(y,x).val[2] = (label * 20)%256;
+       }
+       imshow("Region Image",regionImg);
+       waitKey(0);
+       } 
+       imshow("Region Image",regionImg);
+       */
     Mat gradientX;
     Mat gradientY;
     Mat targetImg = Mat::zeros(img.rows,img.cols,CV_8UC3);
@@ -315,10 +337,10 @@ void renderImage(){
     intensity = smoothImage(img,cv::Size(21,21),0,0);
 
     sobelFilter(intensity,gradientX,gradientY,sobelFilteredImage);
-    
+
     Mat interPolationGX = Mat::zeros(gradientX.rows,gradientX.cols,CV_64FC1);
     Mat interPolationGY = Mat::zeros(gradientX.rows,gradientY.cols,CV_64FC1);
-    
+
     vector<vector<Point2d> > selectedRegionPivot;
     //calculate the gradient of each point
     cout<<"Calculate gradient..."<<endl;
@@ -327,7 +349,7 @@ void renderImage(){
 
     // render the image region by region
     cout<<"Render image region by region..."<<endl;
-    
+
     // record whether a pivot has been covered or not, if not, draw brush there
     // otherwise, do nothing
     Mat hasDrawn = Mat::zeros(img.rows,img.cols,CV_32SC1);
@@ -335,10 +357,20 @@ void renderImage(){
         vector<Point2d> currRegion = region[i];
         vector<Point2d> currPivot = selectedRegionPivot[i];
         cout<<"Pivot size: "<<currRegion.size()<<" "<<currPivot.size()<<endl;
+
+        Point3d currAverageColor = averageColor[i];
+        double averageH = 0;
+        double averageS = 0;
+        double averageV = 0;
+        rgb2hsv(currAverageColor.x,currAverageColor.y,currAverageColor.z,
+                averageH,averageS,averageV);
+
+
+
         for(int j = 0;j < currPivot.size();j++){
             // randomy number of brushes 
             // if(hasDrawn.at<int>(currPivot[j].y,currPivot[j].x) != 0){
-                // continue;
+            // continue;
             // }
 
             int brushNum = rand() % (MAXBRUSHNUM - MINBRUSHNUM) + MINBRUSHNUM;
@@ -351,7 +383,7 @@ void renderImage(){
             int g = 0;
             int b = 0;
             int count = 0; 
-            
+
             // pivot label
             int pivotLabel = regionLabel.at<int>(currPivot[j].y,currPivot[j].x);
             // get average color
@@ -375,11 +407,17 @@ void renderImage(){
             r = r/count;
             g = g/count;
             b = b/count;
-        
+
             for(int k = 0;k < brushPoint.size();k++){
 
                 int x = brushPoint[k].x;
                 int y = brushPoint[k].y;
+                //check point valid
+                if(!checkPointValid(Point2d(x,y),targetImg))
+                    continue;
+
+
+
                 int label = regionLabel.at<int>(y,x);
                 if(label != pivotLabel)
                     continue;
@@ -390,9 +428,35 @@ void renderImage(){
                 int backgroundR = targetImg.at<Vec3b>(y,x).val[2];
                 int backgroundG = targetImg.at<Vec3b>(y,x).val[1];
                 int backgroundB = targetImg.at<Vec3b>(y,x).val[0];
-                targetImg.at<Vec3b>(y,x).val[0] = (uchar)(int)( (1-alpha)*b + alpha * backgroundB); 
-                targetImg.at<Vec3b>(y,x).val[1] = (uchar)(int)((1-alpha)*g + alpha * backgroundG);
-                targetImg.at<Vec3b>(y,x).val[2] = (uchar)(int)((1-alpha)*r + alpha * backgroundR);
+                double tempB = (1-alpha)*b + alpha * backgroundB; 
+                double tempG = (1-alpha)*g + alpha * backgroundG;
+                double tempR = (1-alpha)*r + alpha * backgroundR;
+            
+
+                // tempR = currAverageColor.x + (tempR - currAverageColor.x) * 0.05;
+                // tempG = currAverageColor.y + (tempG - currAverageColor.y) * 0.05;
+                // tempB = currAverageColor.y + (tempB - currAverageColor.z) * 0.05;
+                
+                double h;
+                double s;
+                double v;
+                
+                rgb2hsv(tempR,tempG,tempB,h,s,v);
+                
+                // h = averageH + (h - averageH) * 0.3;
+                // s = averageS + (s - averageS) * 0.3;
+                // v = averageV + (v - averageV) * 0.3;
+                    
+                hsv2rgb(h,s,v,tempR,tempG,tempB);     
+
+
+                targetImg.at<Vec3b>(y,x).val[0] = (uchar)(tempB);
+                targetImg.at<Vec3b>(y,x).val[1] = (uchar)(tempG);
+                targetImg.at<Vec3b>(y,x).val[2] = (uchar)(tempR);
+                // targetImg.at<Vec3b>(y,x).val[0] = (uchar)(currAverageColor.z);
+                // targetImg.at<Vec3b>(y,x).val[1] = (uchar)(currAverageColor.y);
+                // targetImg.at<Vec3b>(y,x).val[2] = (uchar)(currAverageColor.x);
+                
 
                 // hasDrawn.at<int>(y,x) = 1;
             }  
@@ -402,7 +466,7 @@ void renderImage(){
     }
 
     waitKey(0); 
-      
+
 }
 
 void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& gradientX, const Mat& gradientY,
@@ -438,21 +502,21 @@ void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& grad
             }
         }
         // if(currPoint.x == endPoint.x && currPoint.y == endPoint.y)
-            // return;  
+        // return;  
         // Point3d: (x,y,alpha)
         double radius = randomBrushRadius();
         // cout<<currPoint.x<<" "<<currPoint.y << " "<<endPoint.x<<" "<<endPoint.y<<endl;
         cout<<"Start rendering..."<<endl;
         renderRectangle(currPoint,endPoint,brushPoint,radius); 
         cout<<"End rendering..."<<endl;
-        renderCircle(currPoint,brushPoint,radius);
-        renderCircle(endPoint,brushPoint,radius);
-         
+        // renderCircle(currPoint,brushPoint,radius);
+        // renderCircle(endPoint,brushPoint,radius);
+
         // render next brush
         currPoint = endPoint;
         num++;
     }
-    
+
 }
 
 void renderCircle(Point2d center, vector<Point3d>& brush, double radius){
@@ -492,18 +556,18 @@ void renderRectangle(Point2d startPoint, Point2d endPoint, vector<Point3d>& brus
     Point2d rectangleVertex2 = startPoint + perpendicular * radius;
     Point2d rectangleVertex3 = endPoint + perpendicular * radius;
     Point2d rectangleVertex4 = endPoint - perpendicular * radius;
-    
+
     Point2d outerRectangleVertex1 = startPoint - perpendicular * (radius + FALLOFF);
     Point2d outerRectangleVertex2 = startPoint + perpendicular * (radius + FALLOFF);
     Point2d outerRectangleVertex3 = endPoint + perpendicular * (radius + FALLOFF);
     Point2d outerRectangleVertex4 = endPoint - perpendicular * (radius + FALLOFF);
-    
+
     int minimumX = min(outerRectangleVertex1.x,min(outerRectangleVertex2.x,min(outerRectangleVertex3.x,outerRectangleVertex4.x)));
     int minimumY = min(outerRectangleVertex1.y,min(outerRectangleVertex2.y,min(outerRectangleVertex3.y,outerRectangleVertex4.y)));
     int maximumX = max(outerRectangleVertex1.x,max(outerRectangleVertex2.x,max(outerRectangleVertex3.x,outerRectangleVertex4.x)));
     int maximumY = max(outerRectangleVertex1.y,max(outerRectangleVertex2.y,max(outerRectangleVertex3.y,outerRectangleVertex4.y)));
-   
-       
+
+
     for(int i = minimumX - 1;i < maximumX + 1;i++){
         for(int j = minimumY - 1;j < maximumY + 1;j++){
             Point2d currPoint(i,j);
@@ -545,12 +609,81 @@ bool pairCompare(pair<double,int>& p1, pair<double, int>& p2){
         return true;
 } 
 
-// bool pairCompare( myPair& p1,  myPair& p2){
-    // if(p1.value < p2.value)
-        // return false;
-    
-    // return true;
-// }
+void hsv2rgb(double H, double S, double V, double& R, double &G, double& B){
+
+    H = H / 360.0; 
+    S = S / 100.0;
+    V = V / 100.0;
+    if ( S == 0 )                       //HSV from 0 to 1
+    {
+        R = V * 255;
+        G = V * 255;
+        B = V * 255;
+    }
+    else
+    {
+        double var_h = H * 6.0;
+        if ( var_h == 6.0 ) var_h = 0;      //H must be < 1
+        //int var_i = int( 1 + var_h );             //Or ... var_i = floor( var_h )
+        double var_i = floor( var_h );
+        double var_1 = V * ( 1 - S );
+        double var_2 = V * ( 1 - S * ( var_h - var_i ) );
+        double var_3 = V * ( 1 - S * ( 1 - ( var_h - var_i ) ) );
+
+        double var_r;
+        double var_g;
+        double var_b;
+        if      ( var_i == 0 ) { var_r = V     ; var_g = var_3 ; var_b = var_1; }
+        else if ( var_i == 1 ) { var_r = var_2 ; var_g = V     ; var_b = var_1; }
+        else if ( var_i == 2 ) { var_r = var_1 ; var_g = V     ; var_b = var_3; }
+        else if ( var_i == 3 ) { var_r = var_1 ; var_g = var_2 ; var_b = V;     }
+        else if ( var_i == 4 ) { var_r = var_3 ; var_g = var_1 ; var_b = V;     }
+        else                   { var_r = V     ; var_g = var_1 ; var_b = var_2; }
+
+        R = var_r * 255;                  //RGB results from 0 to 255
+        G = var_g * 255;
+        B = var_b * 255;
+        if (R > 255)R = 255;
+        if (G > 255)G = 255;
+        if (B > 255)B = 255;
+    }
+}
+
+void rgb2hsv(double R, double G, double B, double &H, double &S, double &V){
+    double var_R = ( R / 255 );                     //RGB from 0 to 255
+    double var_G = ( G / 255 );
+    double var_B = ( B / 255 );
+
+    double var_Min = min( var_R, min(var_G, var_B ));    //Min. value of RGB
+    double var_Max = max( var_R, max(var_G, var_B ));    //Max. value of RGB
+    double del_Max = var_Max - var_Min;             //Delta RGB value 
+
+    V = var_Max;
+
+    if ( del_Max == 0 )                     //This is a gray, no chroma...
+    {
+        H = 0;                             //HSV results from 0 to 1
+        S = 0;
+    }
+    else                                    //Chromatic data...
+    {
+        S = del_Max / var_Max;
+
+        double del_R = ( ( ( var_Max - var_R ) / 6 ) + ( del_Max / 2 ) ) / del_Max;
+        double del_G = ( ( ( var_Max - var_G ) / 6 ) + ( del_Max / 2 ) ) / del_Max;
+        double del_B = ( ( ( var_Max - var_B ) / 6 ) + ( del_Max / 2 ) ) / del_Max;
+
+        if      ( var_R == var_Max ) H = del_B - del_G;
+        else if ( var_G == var_Max ) H = ( 1.0 / 3.0 ) + del_R - del_B;
+        else if ( var_B == var_Max ) H = ( 2.0 / 3.0 ) + del_G - del_R;
+
+        if ( H < 0 ) H += 1;
+        if ( H > 1 ) H -= 1;
+    }
+    H = H * 360;
+    S = S * 100;
+    V = V *  100;
+}
 
 
 
