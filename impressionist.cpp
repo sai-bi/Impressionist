@@ -425,6 +425,7 @@ void renderImage(){
                     continue;
                 }
                 double alpha = brushPoint[k].z;
+                // cout<<alpha<<endl;
                 int backgroundR = targetImg.at<Vec3b>(y,x).val[2];
                 int backgroundG = targetImg.at<Vec3b>(y,x).val[1];
                 int backgroundB = targetImg.at<Vec3b>(y,x).val[0];
@@ -443,9 +444,9 @@ void renderImage(){
                 
                 rgb2hsv(tempR,tempG,tempB,h,s,v);
                 
-                // h = averageH + (h - averageH) * 0.3;
-                // s = averageS + (s - averageS) * 0.3;
-                // v = averageV + (v - averageV) * 0.3;
+                h = averageH + (h - averageH) * 0.5;
+                s = averageS + (s - averageS) * 0.5;
+                v = averageV + (v - averageV) * 0.5;
                     
                 hsv2rgb(h,s,v,tempR,tempG,tempB);     
 
