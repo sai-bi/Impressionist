@@ -255,7 +255,8 @@ void mySort(vector<pair<double,Point2d> >& mypair){
 
 void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
     ifstream fin;
-    fin.open("./385028.txt");
+    // fin.open("./385028.txt");
+    fin.open("./249061.txt");
     int temp;
     vector<Point2d> a[50];  
     int count = -1;
@@ -277,7 +278,8 @@ void readRegionInfo(vector<vector<Point2d> >& region, Mat& regionLabel){
 }
 
 void renderImage(){
-    Mat img = imread("./385028.jpg");
+    // Mat img = imread("./385028.jpg");
+    Mat img = imread("./249061.jpg");
     // Gaussian Blur
     cout<<"Image blur..."<<endl;
     Mat blurImage = smoothImage(img,cv::Size(21,21),0,0);
@@ -443,10 +445,14 @@ void renderImage(){
                 double v;
                 
                 rgb2hsv(tempR,tempG,tempB,h,s,v);
-                
-                h = averageH + (h - averageH) * 0.5;
-                s = averageS + (s - averageS) * 0.5;
-                v = averageV + (v - averageV) * 0.5;
+                // if(abs(h-averageH) > 5)
+                    // h = averageH + (h - averageH) * 0.01;
+                h = averageH;
+                if(abs(s-averageS) > 5)
+                    s = averageS + (s - averageS) * 0.01;
+                if(abs(v-averageV) > 5)
+                    v = averageV + (v - averageV) * 0.01;
+                // v = averageV;
                     
                 hsv2rgb(h,s,v,tempR,tempG,tempB);     
 
@@ -495,7 +501,6 @@ void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& grad
             }
             int currLabel = regionLabel.at<int>((int)(endPoint.y),(int)(endPoint.x));
             if(currLabel != label){
-
                 break;
             }
             if(cv::norm(currPoint-endPoint) > maxLength){
@@ -508,10 +513,17 @@ void getBrushPoints(const Mat& originImg, const Mat& regionLabel,const Mat& grad
         double radius = randomBrushRadius();
         // cout<<currPoint.x<<" "<<currPoint.y << " "<<endPoint.x<<" "<<endPoint.y<<endl;
         cout<<"Start rendering..."<<endl;
-        renderRectangle(currPoint,endPoint,brushPoint,radius); 
+        // cout<<norm(currPoint - endPoint)<<endl;
+        if(norm(currPoint-endPoint) < 30){
+            currPoint = endPoint;
+            num++;
+            continue;
+        }        
+
         cout<<"End rendering..."<<endl;
         // renderCircle(currPoint,brushPoint,radius);
         // renderCircle(endPoint,brushPoint,radius);
+        renderRectangle(currPoint,endPoint,brushPoint,radius); 
 
         // render next brush
         currPoint = endPoint;

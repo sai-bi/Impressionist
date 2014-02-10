@@ -12,12 +12,12 @@
 #define BRUSH_LENGTH_2 50
 #define BRUSH_RADIUS_1 1.5
 #define BRUSH_RADIUS_2 2.5
-#define FALLOFF 5
+#define FALLOFF 10
 #define GRADIENT_RADIUS 10
 #define PI 3.1415926
 #define MAXBRUSHNUM 10
 #define MINBRUSHNUM 5
-#define FIXEDPIVOTNUM 2000
+#define FIXEDPIVOTNUM 200
 #define MINPIVOTDIST 10
 
 using namespace std;
